@@ -1,0 +1,18 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: resume-service
+  # Kafka configuration (optional - comment out if Kafka is not installed)
+  # kafka:
+  #   bootstrap-servers: localhost:9092
+  #   consumer:
+  #     group-id: notification-group
+  #     auto-offset-reset: earliest
+  #     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  #     value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+logging:
+  level:
+    com.jobplus: INFO
