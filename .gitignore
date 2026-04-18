@@ -58,3 +58,6 @@ coverage/
 # Dependency directories
 node_modules/
 jspm_packages/
+
+# npm cache
+frontend/.npm-cache/
