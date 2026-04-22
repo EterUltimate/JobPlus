@@ -2,7 +2,9 @@
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
 
-set "ROOT=%~dp0"
+REM Get project root directory (parent of scripts directory)
+set "SCRIPT_DIR=%~dp0"
+for %%i in ("%SCRIPT_DIR%..") do set "ROOT=%%~fi"
 set "LOG_DIR=%ROOT%logs"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "TS=%%i"

@@ -2,7 +2,9 @@
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
 
-set "ROOT=%~dp0"
+REM Get project root directory (parent of scripts directory)
+set "SCRIPT_DIR=%~dp0"
+for %%i in ("%SCRIPT_DIR%..") do set "ROOT=%%~fi"
 set "LOG_DIR=%ROOT%logs"
 set "BACKEND_DIR=%ROOT%backend"
 set "FRONTEND_DIR=%ROOT%frontend"

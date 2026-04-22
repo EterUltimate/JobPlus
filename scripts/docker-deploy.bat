@@ -2,10 +2,17 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
+REM Get project root directory (parent of scripts directory)
+set "SCRIPT_DIR=%~dp0"
+for %%i in ("%SCRIPT_DIR%..") do set "ROOT=%%~fi"
+
 echo ========================================
 echo    JobPlus Docker 部署脚本
 echo ========================================
 echo.
+
+REM Change to project root directory
+cd /d "%ROOT%"
 
 REM 检查Docker是否安装
 where docker >nul 2>nul
@@ -33,13 +40,13 @@ if %errorlevel% neq 0 (
 
 echo [1/4] 检查环境配置...
 REM 确保在项目根目录
-if not exist "docker-compose.yml" (
+if not exist "%ROOT%\docker-compose.yml" (
     echo [错误] 未找到 docker-compose.yml，请确保在项目根目录运行此脚本
     pause
     exit /b 1
 )
 
-if not exist ".env" (
+if not exist "%ROOT%\.env" (
     echo [提示] 未找到.env文件，从.env.example复制...
     copy .env.example .env >nul
     echo [提示] 请根据需要修改.env文件中的配置
