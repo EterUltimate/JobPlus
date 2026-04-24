@@ -12,6 +12,7 @@ import com.jobplus.job.repository.DeliveryMapper;
 import com.jobplus.job.repository.JobMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ public class JobService {
 
     private final JobMapper jobMapper;
     private final DeliveryMapper deliveryMapper;
-    private final KafkaTemplate<String, String> kafkaTemplate; // Optional - will be null if Kafka is not configured
+    private final ObjectProvider<KafkaTemplate<String, String>> kafkaTemplateProvider;
     private final StringRedisTemplate redisTemplate;
 
     /** 发布或更新职位（HR） */

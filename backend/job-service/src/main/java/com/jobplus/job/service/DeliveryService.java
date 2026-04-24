@@ -15,6 +15,7 @@ import com.jobplus.job.repository.JobMapper;
 import com.jobplus.job.repository.ResumeMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +36,7 @@ public class DeliveryService {
     private final DeliveryMapper deliveryMapper;
     private final JobMapper jobMapper;
     private final ResumeMapper resumeMapper;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectProvider<KafkaTemplate<String, String>> kafkaTemplateProvider;
 
     /**
      * 投递简历（核心业务流程）
@@ -99,6 +100,7 @@ public class DeliveryService {
                 "hrUserId", job.getHrUserId(),
                 "applyTime", delivery.getApplyTime().toString()
         );
+        KafkaTemplate<String, String> kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
         if (kafkaTemplate != null) {
             kafkaTemplate.send(RedisKeys.TOPIC_JOB_APPLY, JSON.toJSONString(msg))
                     .whenComplete((r, ex) -> {
@@ -143,6 +145,7 @@ public class DeliveryService {
                 "status", s,
                 "feedback", req.getFeedback() != null ? req.getFeedback() : ""
         );
+        KafkaTemplate<String, String> kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
         if (kafkaTemplate != null) {
             kafkaTemplate.send(RedisKeys.TOPIC_JOB_APPLY, JSON.toJSONString(msg));
         } else {

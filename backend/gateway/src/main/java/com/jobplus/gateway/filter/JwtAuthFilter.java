@@ -31,12 +31,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
 
-    /** 公开路径（无需认证） */
-    private static final String[] PUBLIC_PATHS = {
+    private static final String[] PUBLIC_EXACT_PATHS = {
             "/api/auth/login",
             "/api/auth/register",
-            "/api/jobs",         // 职位搜索（可选认证）
-            "/api/jobs/"         // 职位详情（可选认证）
+            "/api/jobs",
+            "/actuator/health"
     };
 
     @Override
@@ -82,9 +81,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     public int getOrder() { return -100; } // 最高优先级
 
     private boolean isPublic(String path) {
-        for (String p : PUBLIC_PATHS) {
-            if (path.startsWith(p)) return true;
+        for (String p : PUBLIC_EXACT_PATHS) {
+            if (path.equals(p)) {
+                return true;
+            }
         }
+
+        if (path.startsWith("/api/jobs/")) {
+            String suffix = path.substring("/api/jobs/".length());
+            return !suffix.isEmpty() && !suffix.contains("/");
+        }
+
         return false;
     }
 

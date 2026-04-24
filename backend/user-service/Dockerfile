@@ -11,8 +11,6 @@ COPY job-service/pom.xml job-service/
 COPY resume-service/pom.xml resume-service/
 COPY gateway/pom.xml gateway/
 
-RUN mvn dependency:go-offline -B
-
 # 复制源代码
 COPY common/src common/src
 COPY user-service/src user-service/src

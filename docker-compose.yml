@@ -20,6 +20,27 @@ services:
       timeout: 5s
       retries: 5
 
+  # Nacos 注册中心 & 配置中心
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: jobplus-nacos
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - nacos_data:/home/nacos/data
+    networks:
+      - jobplus-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8848/nacos/v1/console/health/readiness"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
   # Redis 缓存
   redis:
     image: redis:7-alpine
@@ -49,6 +70,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
       JWT_SECRET: jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
       JWT_EXPIRATION_MS: 86400000
     ports:
@@ -57,6 +80,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
     networks:
       - jobplus-network
@@ -77,10 +102,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobplus
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
     ports:
       - "8082:8082"
     depends_on:
       postgres:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
     networks:
       - jobplus-network
@@ -103,12 +132,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
     ports:
       - "8083:8083"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
     networks:
       - jobplus-network
@@ -125,8 +158,14 @@ services:
       context: ./backend
       dockerfile: resume-service/Dockerfile
     container_name: jobplus-resume-service
+    environment:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
     ports:
       - "8084:8084"
+    depends_on:
+      nacos:
+        condition: service_healthy
     networks:
       - jobplus-network
     healthcheck:
@@ -145,12 +184,16 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
       JWT_SECRET: jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
       JWT_EXPIRATION_MS: 86400000
     ports:
       - "8080:8080"
     depends_on:
       redis:
+        condition: service_healthy
+      nacos:
         condition: service_healthy
       auth-service:
         condition: service_healthy
@@ -192,6 +235,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  nacos_data:
 
 networks:
   jobplus-network:

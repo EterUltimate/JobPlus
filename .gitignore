@@ -61,6 +61,7 @@ jspm_packages/
 
 # npm cache
 frontend/.npm-cache/
+backend/package-lock.json
 
 # Project reports and documentation (keep only README.md)
 project-report/

@@ -21,19 +21,19 @@ public class GatewayConfig {
         return builder.routes()
                 .route("auth-service", r -> r
                         .path("/api/auth/**")
-                        .uri("http://localhost:8081"))
+                        .uri("lb://auth-service"))
                 .route("user-service", r -> r
                         .path("/api/users/**")
-                        .uri("http://localhost:8082"))
+                        .uri("lb://user-service"))
                 .route("job-service", r -> r
                         .path("/api/jobs/**")
-                        .uri("http://localhost:8083"))
+                        .uri("lb://job-service"))
                 .route("delivery-service", r -> r
                         .path("/api/deliveries/**")
-                        .uri("http://localhost:8083"))
+                        .uri("lb://job-service"))
                 .route("resume-service", r -> r
                         .path("/api/resumes/**")
-                        .uri("http://localhost:8083"))
+                        .uri("lb://job-service"))
                 .build();
     }
 }

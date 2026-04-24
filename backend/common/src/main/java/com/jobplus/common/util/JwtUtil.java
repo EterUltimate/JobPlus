@@ -17,7 +17,7 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256}")
+    @Value("${jwt.secret:jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}")
     private String secret;
 
     @Value("${jwt.expiration-ms:86400000}")

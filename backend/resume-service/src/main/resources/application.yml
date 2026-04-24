@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: resume-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        enabled: false
+        server-addr: localhost:8848
   # Kafka configuration (optional - comment out if Kafka is not installed)
   # kafka:
   #   bootstrap-servers: localhost:9092

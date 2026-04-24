@@ -4,10 +4,17 @@ server:
 spring:
   application:
     name: user-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        enabled: false
+        server-addr: localhost:8848
   datasource:
-    url: jdbc:postgresql://localhost:5432/jobplus
-    username: postgres
-    password: postgres
+    url: ${JOBPLUS_DB_URL:jdbc:postgresql://localhost:5432/jobplus}
+    username: ${JOBPLUS_DB_USERNAME:postgres}
+    password: ${JOBPLUS_DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
 mybatis-plus:

@@ -58,7 +58,9 @@
           <div class="job-company">{{ job.location }}</div>
           <div class="job-salary">{{ formatSalary(job) }}</div>
           <div class="job-tags">
-            <el-tag v-for="t in (job.tags || '').split(',')" :key="t" size="small" v-if="t">{{ t }}</el-tag>
+            <template v-for="t in (job.tags || '').split(',')" :key="t">
+              <el-tag v-if="t" size="small">{{ t }}</el-tag>
+            </template>
           </div>
           <div class="job-meta">
             <span>{{ job.workTypeText }}</span>
@@ -101,7 +103,11 @@ async function loadJobs() {
 
 function goSearch() { router.push(`/jobs?keyword=${keyword.value}`) }
 function goDetail(id: number) { router.push(`/jobs/${id}`) }
-function logout() { auth.logout(); router.push('/login') }
+
+async function logout() {
+  await auth.logout()
+  router.push('/login')
+}
 
 onMounted(() => { loadJobs() })
 </script>

@@ -195,11 +195,23 @@ INSERT INTO t_user (username, password_hash, real_name, phone, email, role, comp
 ('admin',     '$2a$10$N9qo8uLOickgx2ZMRZoMye.IxqQFLKLKjR1gK.QVLBvNTHbHx3yW2', '管理员', '13800000000', 'admin@jobplus.com',  'ADMIN',  NULL)
 ON CONFLICT (username) DO NOTHING;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'uk_job_title_company'
+    ) THEN
+        ALTER TABLE t_job
+            ADD CONSTRAINT uk_job_title_company UNIQUE (title, company_id);
+    END IF;
+END $$;
+
 INSERT INTO t_job (company_id, hr_user_id, title, salary_min, salary_max, location, work_type, requirements, description, tags, status) VALUES
 (1, 3, '后端开发实习生', 200, 300, '北京·海淀区', 'onsite', '熟悉Java/Python，了解Spring Boot；本科在读及以上', '参与公司核心后端服务开发，与团队协作完成需求。', 'Java,SpringBoot,MySQL,实习', 1),
 (1, 3, '前端开发工程师', 8000, 15000, '北京·海淀区', 'hybrid', '熟练Vue3或React，掌握TypeScript，了解前端工程化', '负责Web端页面开发，配合后端联调，负责前端性能优化。', 'Vue3,TypeScript,Vite,前端', 1),
 (1, 3, '产品经理', 15000, 25000, '北京', 'onsite', '2年以上互联网产品经验，擅长需求分析和产品设计', '主导产品规划，对接研发和运营，推动产品迭代上线。', '产品设计,需求分析,PRD', 1)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (title, company_id) DO NOTHING;
 
 INSERT INTO t_resume (user_id, real_name, gender, age, education, major, phone, email, work_exp, skills, content_json, visibility) VALUES
 (1, '张三', 'male', 22, '本科在读', '计算机科学与技术', '13800001001', 'zhangsan@example.com', 0, 'Java,Python,Spring Boot,MySQL', '{"summary":"大三学生，热爱后端开发","projects":[{"name":"校园二手平台","desc":"使用Spring Boot开发的全栈项目"}]}'::jsonb, 1),

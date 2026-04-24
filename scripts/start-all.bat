@@ -12,6 +12,12 @@ set "FRONTEND_DIR=%ROOT%frontend"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "TS=%%i"
 set "LOG_FILE=%LOG_DIR%\start-all-%TS%.log"
+set "USER_SERVICE_PORT=8082"
+
+REM Allow database credentials to be overridden via environment variables
+if not defined JOBPLUS_DB_URL set "JOBPLUS_DB_URL=jdbc:postgresql://localhost:5432/jobplus"
+if not defined JOBPLUS_DB_USERNAME set "JOBPLUS_DB_USERNAME=postgres"
+if not defined JOBPLUS_DB_PASSWORD set "JOBPLUS_DB_PASSWORD=postgres"
 
 call :log "=========================================="
 call :log "JobPlus one-click startup"
@@ -49,11 +55,18 @@ if exist "%ROOT%scripts\start-nacos.bat" (
 )
 
 call :log "[2/4] Start backend services in separate windows"
-start "JobPlus-Gateway" cmd /k "cd /d %BACKEND_DIR%\gateway && call mvn spring-boot:run 1>>""%LOG_DIR%\gateway-%TS%.log"" 2>&1"
-start "JobPlus-Auth" cmd /k "cd /d %BACKEND_DIR%\auth-service && call mvn spring-boot:run 1>>""%LOG_DIR%\auth-%TS%.log"" 2>&1"
-start "JobPlus-User" cmd /k "cd /d %BACKEND_DIR%\user-service && call mvn spring-boot:run 1>>""%LOG_DIR%\user-%TS%.log"" 2>&1"
-start "JobPlus-Job" cmd /k "cd /d %BACKEND_DIR%\job-service && call mvn spring-boot:run 1>>""%LOG_DIR%\job-%TS%.log"" 2>&1"
-start "JobPlus-Resume" cmd /k "cd /d %BACKEND_DIR%\resume-service && call mvn spring-boot:run 1>>""%LOG_DIR%\resume-%TS%.log"" 2>&1"
+for /f %%i in ('powershell -NoProfile -Command "$busy = Get-NetTCPConnection -State Listen -LocalPort 8082 -ErrorAction SilentlyContinue; if ($busy) { '1' } else { '0' }"') do set "USER_PORT_BUSY=%%i"
+if "%USER_PORT_BUSY%"=="1" (
+  set "USER_SERVICE_PORT=18082"
+  call :log "Port 8082 is busy, user-service will start on !USER_SERVICE_PORT!"
+)
+set "ENV_ARGS=-DJOBPLUS_DB_URL=%JOBPLUS_DB_URL% -DJOBPLUS_DB_USERNAME=%JOBPLUS_DB_USERNAME% -DJOBPLUS_DB_PASSWORD=%JOBPLUS_DB_PASSWORD%"
+
+start "JobPlus-Gateway" cmd /k "cd /d %BACKEND_DIR%\gateway && set JOBPLUS_DB_URL=%JOBPLUS_DB_URL% && set JOBPLUS_DB_USERNAME=%JOBPLUS_DB_USERNAME% && set JOBPLUS_DB_PASSWORD=%JOBPLUS_DB_PASSWORD% && call mvn spring-boot:run 1>>""%LOG_DIR%\gateway-%TS%.log"" 2>&1"
+start "JobPlus-Auth" cmd /k "cd /d %BACKEND_DIR%\auth-service && set JOBPLUS_DB_URL=%JOBPLUS_DB_URL% && set JOBPLUS_DB_USERNAME=%JOBPLUS_DB_USERNAME% && set JOBPLUS_DB_PASSWORD=%JOBPLUS_DB_PASSWORD% && call mvn spring-boot:run 1>>""%LOG_DIR%\auth-%TS%.log"" 2>&1"
+start "JobPlus-User" cmd /k "cd /d %BACKEND_DIR%\user-service && set JOBPLUS_DB_URL=%JOBPLUS_DB_URL% && set JOBPLUS_DB_USERNAME=%JOBPLUS_DB_USERNAME% && set JOBPLUS_DB_PASSWORD=%JOBPLUS_DB_PASSWORD% && call mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=!USER_SERVICE_PORT! 1>>""%LOG_DIR%\user-%TS%.log"" 2>&1"
+start "JobPlus-Job" cmd /k "cd /d %BACKEND_DIR%\job-service && set JOBPLUS_DB_URL=%JOBPLUS_DB_URL% && set JOBPLUS_DB_USERNAME=%JOBPLUS_DB_USERNAME% && set JOBPLUS_DB_PASSWORD=%JOBPLUS_DB_PASSWORD% && call mvn spring-boot:run 1>>""%LOG_DIR%\job-%TS%.log"" 2>&1"
+start "JobPlus-Resume" cmd /k "cd /d %BACKEND_DIR%\resume-service && set JOBPLUS_DB_URL=%JOBPLUS_DB_URL% && set JOBPLUS_DB_USERNAME=%JOBPLUS_DB_USERNAME% && set JOBPLUS_DB_PASSWORD=%JOBPLUS_DB_PASSWORD% && call mvn spring-boot:run 1>>""%LOG_DIR%\resume-%TS%.log"" 2>&1"
 
 call :log "Waiting 8 seconds before starting frontend..."
 timeout /t 8 /nobreak >nul
@@ -65,7 +78,7 @@ call :log "[4/4] Startup command finished"
 call :log "Frontend:  http://localhost:5173"
 call :log "Gateway:   http://localhost:8080"
 call :log "Auth:      http://localhost:8081"
-call :log "User:      http://localhost:8082"
+call :log "User:      http://localhost:!USER_SERVICE_PORT!"
 call :log "Job:       http://localhost:8083"
 call :log "Resume:    http://localhost:8084"
 call :log "."
