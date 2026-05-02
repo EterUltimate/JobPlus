@@ -5,7 +5,7 @@ chcp 65001 >nul
 REM Get project root directory (parent of scripts directory)
 set "SCRIPT_DIR=%~dp0"
 for %%i in ("%SCRIPT_DIR%..") do set "ROOT=%%~fi"
-set "LOG_DIR=%ROOT%logs"
+set "LOG_DIR=%ROOT%\logs"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "TS=%%i"
 set "LOG_FILE=%LOG_DIR%\setup-all-%TS%.log"
@@ -73,7 +73,7 @@ exit /b 1
 :install
 call :log "."
 call :log "[1/3] Pre-fetch backend dependencies"
-cd /d "%ROOT%backend"
+cd /d "%ROOT%\backend"
 call mvn -q -DskipTests dependency:go-offline >> "%LOG_FILE%" 2>&1
 set "RC=!errorlevel!"
 call :log "backend dependency:go-offline exit code: !RC!"
@@ -86,9 +86,9 @@ call :log "backend compile exit code: !RC!"
 if not "!RC!"=="0" goto :fail
 
 call :log "[3/3] Install frontend dependencies"
-cd /d "%ROOT%frontend"
-if not exist "%ROOT%frontend\.npm-cache" mkdir "%ROOT%frontend\.npm-cache"
-set "npm_config_cache=%ROOT%frontend\.npm-cache"
+cd /d "%ROOT%\frontend"
+if not exist "%ROOT%\frontend\.npm-cache" mkdir "%ROOT%\frontend\.npm-cache"
+set "npm_config_cache=%ROOT%\frontend\.npm-cache"
 set "npm_config_offline=false"
 call npm install >> "%LOG_FILE%" 2>&1
 set "RC=!errorlevel!"

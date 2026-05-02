@@ -7,7 +7,7 @@ spring:
   datasource:
     url: ${JOBPLUS_DB_URL:jdbc:postgresql://localhost:5432/jobplus}
     username: ${JOBPLUS_DB_USERNAME:postgres}
-    password: ${JOBPLUS_DB_PASSWORD:postgres}
+    password: Luo@760818
     driver-class-name: org.postgresql.Driver
   data:
     redis:
