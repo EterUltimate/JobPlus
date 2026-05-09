@@ -1,25 +1,37 @@
 server:
   port: 8081
+  shutdown: graceful
 
 spring:
   application:
     name: auth-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   datasource:
     url: ${JOBPLUS_DB_URL:jdbc:postgresql://localhost:5432/jobplus}
     username: ${JOBPLUS_DB_USERNAME:postgres}
-    password: Luo@760818
+    password: ${JOBPLUS_DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000
+      validation-timeout: 1000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      leak-detection-threshold: 10000
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
       config:
         enabled: false
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
 
 mybatis-plus:
   configuration:
@@ -30,9 +42,25 @@ mybatis-plus:
       id-type: auto
 
 jwt:
-  secret: jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET:jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
 
 logging:
   level:
-    com.jobplus: DEBUG
+    com.jobplus: INFO

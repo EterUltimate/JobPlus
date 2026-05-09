@@ -1,16 +1,19 @@
 server:
   port: 8084
+  shutdown: graceful
 
 spring:
   application:
     name: resume-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
       config:
         enabled: false
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
   # Kafka configuration (optional - comment out if Kafka is not installed)
   # kafka:
   #   bootstrap-servers: localhost:9092
@@ -19,6 +22,17 @@ spring:
   #     auto-offset-reset: earliest
   #     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
   #     value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
 
 logging:
   level:

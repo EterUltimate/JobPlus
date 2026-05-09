@@ -156,6 +156,26 @@ COMMENT ON COLUMN t_delivery.status IS '状态：1已投递 2待查看 3笔试�
 COMMENT ON COLUMN t_delivery.feedback IS 'HR反馈';
 COMMENT ON COLUMN t_delivery.apply_time IS '投递时间';
 
+-- ── Outbox 事件表（可靠事件投递）────────────────────────────────
+CREATE TABLE IF NOT EXISTS t_outbox_event (
+    id             BIGSERIAL PRIMARY KEY,
+    event_type     VARCHAR(128) NOT NULL,
+    aggregate_type VARCHAR(128) NOT NULL,
+    aggregate_id   BIGINT NOT NULL,
+    topic          VARCHAR(128) NOT NULL,
+    payload        TEXT NOT NULL,
+    status         VARCHAR(32) NOT NULL DEFAULT 'NEW',
+    retry_count    INT NOT NULL DEFAULT 0,
+    next_retry_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    create_time    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_status_retry ON t_outbox_event(status, next_retry_time);
+CREATE INDEX IF NOT EXISTS idx_outbox_aggregate ON t_outbox_event(aggregate_type, aggregate_id);
+
+COMMENT ON TABLE t_outbox_event IS 'Outbox事件表，保证异步事件可靠投递';
+
 -- ── 创建更新时间触发器函数 ──────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_modified_column()
 RETURNS TRIGGER AS $$
@@ -180,6 +200,10 @@ CREATE TRIGGER update_t_resume_modtime BEFORE UPDATE ON t_resume
 
 DROP TRIGGER IF EXISTS update_t_delivery_modtime ON t_delivery;
 CREATE TRIGGER update_t_delivery_modtime BEFORE UPDATE ON t_delivery
+    FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+
+DROP TRIGGER IF EXISTS update_t_outbox_event_modtime ON t_outbox_event;
+CREATE TRIGGER update_t_outbox_event_modtime BEFORE UPDATE ON t_outbox_event
     FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
 -- ── 初始化演示数据 ───────────────────────────────────────────────

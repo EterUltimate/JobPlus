@@ -1,23 +1,50 @@
 server:
   port: 8080
+  shutdown: graceful
 
 spring:
   main:
     web-application-type: reactive
   application:
     name: gateway
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        heart-beat-interval: 5000
+        heart-beat-timeout: 15000
+        ip-delete-timeout: 30000
       config:
         enabled: false
-        server-addr: localhost:8848
+        server-addr: ${NACOS_ADDR:localhost:8848}
     gateway:
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 5s
+        pool:
+          type: elastic
+          max-idle-time: 30s
+          max-life-time: 60s
+      default-filters:
+        - name: Retry
+          args:
+            retries: 1
+            statuses:
+              - BAD_GATEWAY
+              - SERVICE_UNAVAILABLE
+              - GATEWAY_TIMEOUT
+            methods:
+              - GET
+            backoff:
+              firstBackoff: 200ms
+              maxBackoff: 1s
+              factor: 2
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
+            allowedOrigins: ${CORS_ALLOWED_ORIGINS:*}
             allowedMethods: "*"
             allowedHeaders: "*"
             exposedHeaders:
@@ -25,13 +52,51 @@ spring:
               - X-User-Role
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+          min-idle: 4
 
 jwt:
-  secret: jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET:jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        slowCallRateThreshold: 60
+        slowCallDurationThreshold: 3s
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+    instances:
+      authService:
+        baseConfig: default
+      userService:
+        baseConfig: default
+      jobService:
+        baseConfig: default
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
 
 logging:
   level:
-    com.jobplus.gateway: DEBUG
+    com.jobplus.gateway: INFO

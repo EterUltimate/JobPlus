@@ -1,12 +1,22 @@
+x-common-service: &common-service
+  restart: unless-stopped
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+
 services:
   # PostgreSQL 数据库
   postgres:
+    <<: *common-service
     image: postgres:16-alpine
     container_name: jobplus-postgres
     environment:
-      POSTGRES_DB: jobplus
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-jobplus}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
@@ -14,14 +24,24 @@ services:
       - ./scripts/init-postgresql.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - jobplus-network
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "wal_level=replica"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-jobplus}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   # Nacos 注册中心 & 配置中心
   nacos:
+    <<: *common-service
     image: nacos/nacos-server:v2.3.2
     container_name: jobplus-nacos
     environment:
@@ -43,6 +63,7 @@ services:
 
   # Redis 缓存
   redis:
+    <<: *common-service
     image: redis:7-alpine
     container_name: jobplus-redis
     ports:
@@ -51,7 +72,16 @@ services:
       - redis_data:/data
     networks:
       - jobplus-network
-    command: redis-server --appendonly yes
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -60,20 +90,25 @@ services:
 
   # Auth Service
   auth-service:
+    <<: *common-service
     build:
       context: ./backend
       dockerfile: auth-service/Dockerfile
     container_name: jobplus-auth-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobplus
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
-      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
-      JWT_SECRET: jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
-      JWT_EXPIRATION_MS: 86400000
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75
+        -XX:+ExitOnOutOfMemoryError
+      SPRING_DATASOURCE_URL: ${JOBPLUS_DB_URL:-jdbc:postgresql://postgres:5432/jobplus}
+      SPRING_DATASOURCE_USERNAME: ${JOBPLUS_DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${JOBPLUS_DB_PASSWORD:-postgres}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT:-6379}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      JWT_SECRET: ${JWT_SECRET:-jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
     ports:
       - "8081:8081"
     depends_on:
@@ -86,24 +121,29 @@ services:
     networks:
       - jobplus-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 60s
 
   # User Service
   user-service:
+    <<: *common-service
     build:
       context: ./backend
       dockerfile: user-service/Dockerfile
     container_name: jobplus-user-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobplus
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
-      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75
+        -XX:+ExitOnOutOfMemoryError
+      SPRING_DATASOURCE_URL: ${JOBPLUS_DB_URL:-jdbc:postgresql://postgres:5432/jobplus}
+      SPRING_DATASOURCE_USERNAME: ${JOBPLUS_DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${JOBPLUS_DB_PASSWORD:-postgres}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
     ports:
       - "8082:8082"
     depends_on:
@@ -114,26 +154,31 @@ services:
     networks:
       - jobplus-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 60s
 
   # Job Service
   job-service:
+    <<: *common-service
     build:
       context: ./backend
       dockerfile: job-service/Dockerfile
     container_name: jobplus-job-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobplus
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
-      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75
+        -XX:+ExitOnOutOfMemoryError
+      SPRING_DATASOURCE_URL: ${JOBPLUS_DB_URL:-jdbc:postgresql://postgres:5432/jobplus}
+      SPRING_DATASOURCE_USERNAME: ${JOBPLUS_DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${JOBPLUS_DB_PASSWORD:-postgres}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT:-6379}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
     ports:
       - "8083:8083"
     depends_on:
@@ -146,21 +191,26 @@ services:
     networks:
       - jobplus-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 60s
 
   # Resume Service
   resume-service:
+    <<: *common-service
     build:
       context: ./backend
       dockerfile: resume-service/Dockerfile
     container_name: jobplus-resume-service
     environment:
-      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
-      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75
+        -XX:+ExitOnOutOfMemoryError
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
     ports:
       - "8084:8084"
     depends_on:
@@ -169,25 +219,30 @@ services:
     networks:
       - jobplus-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 60s
 
   # Gateway
   gateway:
+    <<: *common-service
     build:
       context: ./backend
       dockerfile: gateway/Dockerfile
     container_name: jobplus-gateway
     environment:
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
-      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
-      JWT_SECRET: jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
-      JWT_EXPIRATION_MS: 86400000
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75
+        -XX:+ExitOnOutOfMemoryError
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT:-6379}
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: ${NACOS_ADDR:-nacos:8848}
+      JWT_SECRET: ${JWT_SECRET:-jobplus-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
     ports:
       - "8080:8080"
     depends_on:
@@ -206,14 +261,15 @@ services:
     networks:
       - jobplus-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 60s
 
   # Frontend
   frontend:
+    <<: *common-service
     build:
       context: ./frontend
       dockerfile: Dockerfile

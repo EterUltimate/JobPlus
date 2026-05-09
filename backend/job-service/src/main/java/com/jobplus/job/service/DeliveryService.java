@@ -8,14 +8,17 @@ import com.jobplus.common.constant.RedisKeys;
 import com.jobplus.common.dto.*;
 import com.jobplus.common.entity.Delivery;
 import com.jobplus.common.entity.Job;
+import com.jobplus.common.entity.OutboxEvent;
 import com.jobplus.common.entity.Resume;
 import com.jobplus.common.exception.BizException;
 import com.jobplus.job.repository.DeliveryMapper;
 import com.jobplus.job.repository.JobMapper;
+import com.jobplus.job.repository.OutboxEventMapper;
 import com.jobplus.job.repository.ResumeMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,7 @@ public class DeliveryService {
     private final DeliveryMapper deliveryMapper;
     private final JobMapper jobMapper;
     private final ResumeMapper resumeMapper;
+    private final OutboxEventMapper outboxEventMapper;
     private final ObjectProvider<KafkaTemplate<String, String>> kafkaTemplateProvider;
 
     /**
@@ -76,7 +80,7 @@ public class DeliveryService {
             resumeId = resume.getId();
         }
 
-        // 4. 写入投递记录
+        // 4. 写入投递记录（捕获唯一键冲突）
         Delivery delivery = Delivery.builder()
                 .jobId(req.getJobId())
                 .userId(userId)
@@ -84,13 +88,16 @@ public class DeliveryService {
                 .status(Delivery.S_APPLIED)
                 .applyTime(LocalDateTime.now())
                 .build();
-        deliveryMapper.insert(delivery);
+        try {
+            deliveryMapper.insert(delivery);
+        } catch (DuplicateKeyException ex) {
+            throw new BizException("您已投递过该职位，请勿重复投递");
+        }
 
-        // 5. 更新职位投递计数（原子 +1）
-        job.setApplyCount(job.getApplyCount() + 1);
-        jobMapper.updateById(job);
+        // 5. 原子递增职位投递计数
+        jobMapper.incrementApplyCount(job.getId());
 
-        // 6. Kafka async message (optional)
+        // 6. 写入 Outbox（保证事件可靠投递）
         Map<String, Object> msg = Map.of(
                 "type", "JOB_APPLY",
                 "deliveryId", delivery.getId(),
@@ -100,16 +107,16 @@ public class DeliveryService {
                 "hrUserId", job.getHrUserId(),
                 "applyTime", delivery.getApplyTime().toString()
         );
-        KafkaTemplate<String, String> kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
-        if (kafkaTemplate != null) {
-            kafkaTemplate.send(RedisKeys.TOPIC_JOB_APPLY, JSON.toJSONString(msg))
-                    .whenComplete((r, ex) -> {
-                        if (ex != null) log.error("Kafka send failed", ex);
-                        else log.info("Kafka sent: deliveryId={}", delivery.getId());
-                    });
-        } else {
-            log.debug("Kafka not configured, skip message");
-        }
+        outboxEventMapper.insert(OutboxEvent.builder()
+                .eventType("JOB_APPLY")
+                .aggregateType("DELIVERY")
+                .aggregateId(delivery.getId())
+                .topic(RedisKeys.TOPIC_JOB_APPLY)
+                .payload(JSON.toJSONString(msg))
+                .status("NEW")
+                .retryCount(0)
+                .nextRetryTime(LocalDateTime.now())
+                .build());
 
         log.info("User {} applied job {}, deliveryId={}", userId, req.getJobId(), delivery.getId());
         return delivery;
