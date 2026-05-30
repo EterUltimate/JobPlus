@@ -16,7 +16,7 @@ import java.util.Map;
 public class FallbackController {
 
     @GetMapping("/{service}")
-    public ResponseEntity<Map<String, Object>> fallback(@PathVariable String service) {
+    public ResponseEntity<Map<String, Object>> fallback(@PathVariable("service") String service) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
                 "code", 503,
                 "message", service + " service is temporarily unavailable",

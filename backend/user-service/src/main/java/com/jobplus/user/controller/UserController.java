@@ -18,9 +18,9 @@ public class UserController {
     /** 查询用户列表（Admin） */
     @GetMapping
     public Map<String, Object> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String role) {
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "role", required = false) String role) {
         IPage<User> p = userService.pageUsers(page, size, role);
         return Map.of("code", 200, "data", Map.of(
                 "records", p.getRecords(),
@@ -31,7 +31,7 @@ public class UserController {
 
     /** 查指定用户 */
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable Long id) {
+    public Map<String, Object> get(@PathVariable("id") Long id) {
         return Map.of("code", 200, "data", userService.getUser(id));
     }
 

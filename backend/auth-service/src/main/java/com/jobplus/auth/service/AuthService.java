@@ -7,12 +7,14 @@ import com.jobplus.common.entity.User;
 import com.jobplus.common.exception.BizException;
 import com.jobplus.common.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -34,11 +36,7 @@ public class AuthService {
         }
 
         String token = jwtUtil.sign(user.getId(), user.getUsername(), user.getRole());
-        // Token 写入 Redis（用于主动失效）
-        redisTemplate.opsForValue().set(
-                com.jobplus.common.constant.RedisKeys.token(user.getId()),
-                token, 24, TimeUnit.HOURS
-        );
+        cacheToken(user.getId(), token);
         return LoginResponse.builder()
                 .token(token)
                 .username(user.getUsername())
@@ -68,10 +66,7 @@ public class AuthService {
         userMapper.insert(user);
 
         String token = jwtUtil.sign(user.getId(), user.getUsername(), user.getRole());
-        redisTemplate.opsForValue().set(
-                com.jobplus.common.constant.RedisKeys.token(user.getId()),
-                token, 24, TimeUnit.HOURS
-        );
+        cacheToken(user.getId(), token);
         return LoginResponse.builder()
                 .token(token)
                 .username(user.getUsername())
@@ -82,12 +77,27 @@ public class AuthService {
 
     /** 注销 Token（登出） */
     public void logout(Long userId) {
-        redisTemplate.delete(com.jobplus.common.constant.RedisKeys.token(userId));
+        try {
+            redisTemplate.delete(com.jobplus.common.constant.RedisKeys.token(userId));
+        } catch (Exception ex) {
+            log.warn("Redis token deletion skipped for user {}: {}", userId, ex.getMessage());
+        }
     }
 
     /** 解析当前登录用户信息 */
     public User getCurrentUser(String token) {
         Long userId = jwtUtil.getUserId(token);
         return userMapper.selectById(userId);
+    }
+
+    private void cacheToken(Long userId, String token) {
+        try {
+            redisTemplate.opsForValue().set(
+                    com.jobplus.common.constant.RedisKeys.token(userId),
+                    token, 24, TimeUnit.HOURS
+            );
+        } catch (Exception ex) {
+            log.warn("Redis token cache skipped for user {}: {}", userId, ex.getMessage());
+        }
     }
 }

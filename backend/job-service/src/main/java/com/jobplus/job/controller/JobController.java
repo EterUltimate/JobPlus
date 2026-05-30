@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jobplus.common.dto.JobPublishRequest;
 import com.jobplus.common.dto.JobSearchRequest;
 import com.jobplus.common.entity.Job;
+import com.jobplus.common.util.RequestUserContext;
 import com.jobplus.job.service.JobService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -38,7 +39,7 @@ public class JobController {
 
     /** 职位详情 */
     @GetMapping("/{id}")
-    public Map<String, Object> getJobDetail(@PathVariable Long id) {
+    public Map<String, Object> getJobDetail(@PathVariable("id") Long id) {
         return Map.of("code", 200, "data", jobService.getJobDetail(id));
     }
 
@@ -47,36 +48,36 @@ public class JobController {
     public Map<String, Object> publishJob(
             @Valid @RequestBody JobPublishRequest req,
             HttpServletRequest request) {
-        String role = (String) request.getAttribute("role");
+        String role = RequestUserContext.role(request);
         if (!"HR".equals(role) && !"ADMIN".equals(role))
             return Map.of("code", 403, "message", "仅HR可发布职位");
 
-        Job job = jobService.publishJob(req, (Long) request.getAttribute("userId"));
+        Job job = jobService.publishJob(req, RequestUserContext.userId(request));
         return Map.of("code", 200, "data", job, "message", "发布成功");
     }
 
     /** 更新职位状态（HR 关闭职位） */
     @PutMapping("/{id}/status")
     public Map<String, Object> updateStatus(
-            @PathVariable Long id,
-            @RequestParam Integer status,
+            @PathVariable("id") Long id,
+            @RequestParam("status") Integer status,
             HttpServletRequest request) {
-        String role = (String) request.getAttribute("role");
+        String role = RequestUserContext.role(request);
         if (!"HR".equals(role) && !"ADMIN".equals(role))
             return Map.of("code", 403, "message", "无权操作");
 
-        jobService.updateStatus(id, status, (Long) request.getAttribute("userId"));
+        jobService.updateStatus(id, status, RequestUserContext.userId(request));
         return Map.of("code", 200, "message", "状态已更新");
     }
 
     /** HR 查询收到的投递列表 */
     @GetMapping("/hr/deliveries")
     public Map<String, Object> getHrDeliveries(HttpServletRequest request) {
-        String role = (String) request.getAttribute("role");
+        String role = RequestUserContext.role(request);
         if (!"HR".equals(role) && !"ADMIN".equals(role))
             return Map.of("code", 403, "message", "无权访问");
 
-        List<Map<String, Object>> list = jobService.getHrDeliveries((Long) request.getAttribute("userId"));
+        List<Map<String, Object>> list = jobService.getHrDeliveries(RequestUserContext.userId(request));
         return Map.of("code", 200, "data", list);
     }
 }

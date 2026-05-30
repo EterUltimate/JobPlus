@@ -1,15 +1,30 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - README.md
+      - logs/**
   pull_request:
     branches: [main, develop]
+    paths-ignore:
+      - README.md
+      - logs/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build-backend:
-    name: Build Backend Services
+  backend:
+    name: Backend Verify
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./backend
@@ -24,19 +39,17 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/**/pom.xml
 
-      - name: Build Common Module
-        run: mvn install -pl common -q
+      - name: Verify backend
+        run: mvn -B -ntp test
 
-      - name: Compile All Services
-        run: mvn compile -q
-
-      - name: Run Tests
-        run: mvn test -q || true
-
-  build-frontend:
-    name: Build Frontend
+  frontend:
+    name: Frontend Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ./frontend
@@ -53,22 +66,24 @@ jobs:
           cache-dependency-path: ./frontend/package-lock.json
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Build
         run: npm run build
 
-  docker-compose-check:
-    name: Docker Compose Validation
+  compose:
+    name: Compose Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Validate Docker Compose
-        run: docker compose config > /dev/null
+        run: docker compose config --quiet
 
-      - name: Check SQL Syntax
+      - name: Check database init script
         run: |
-          grep -E "CREATE TABLE|CREATE INDEX|CREATE TRIGGER|ALTER TABLE" scripts/init-postgresql.sql | head -20
+          test -s scripts/init-postgresql.sql
+          grep -Eq "CREATE TABLE|CREATE INDEX|CREATE TRIGGER|ALTER TABLE" scripts/init-postgresql.sql

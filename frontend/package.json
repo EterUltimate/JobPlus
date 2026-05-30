@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:web": "vue-tsc && vite build",
+    "build:backend": "node electron/build-backend.cjs",
+    "build:dir": "npm run build:web && npm run build:backend && electron-builder --win dir --x64",
+    "build:exe": "npm run build:web && npm run build:backend && electron-builder --win nsis --x64"
   },
   "dependencies": {
     "vue": "^3.4.0",
@@ -23,6 +27,54 @@
     "vite": "^5.2.0",
     "vue-tsc": "^2.0.0",
     "unplugin-auto-import": "^0.17.5",
-    "unplugin-vue-components": "^0.26.0"
-  }
+    "unplugin-vue-components": "^0.26.0",
+    "electron": "31.7.7",
+    "electron-builder": "^25.1.8"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.jobplus.desktop",
+    "productName": "JobPlus",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend-services",
+        "to": "backend",
+        "filter": [
+          "*.jar"
+        ]
+      },
+      {
+        "from": "java-runtime",
+        "to": "java-runtime",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "description": "JobPlus desktop client",
+  "author": "JobPlus"
 }

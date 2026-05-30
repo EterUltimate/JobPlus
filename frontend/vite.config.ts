@@ -5,7 +5,10 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 
+const proxyTarget = process.env.VITE_PROXY_TARGET || 'http://localhost:8080'
+
 export default defineConfig({
+  base: './',
   plugins: [
     vue(),
     AutoImport({ resolvers: [ElementPlusResolver()], imports: ['vue', 'vue-router', 'pinia'] }),
@@ -19,7 +22,7 @@ export default defineConfig({
     historyApiFallback: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:18080',
+        target: proxyTarget,
         changeOrigin: true,
       },
     },

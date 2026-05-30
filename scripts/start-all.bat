@@ -47,13 +47,7 @@ if "%HAS_NPM%"=="0" (
   goto :end_fail
 )
 
-call :log "[1/4] Optional: start Nacos"
-if exist "%ROOT%\scripts\start-nacos.bat" (
-  start "JobPlus-Nacos" cmd /k "cd /d %ROOT%\scripts && call start-nacos.bat"
-  call :log "Nacos window opened"
-) else (
-  call :log "Nacos start script not found, skipped"
-)
+call :log "[1/4] Nacos auto-start removed; use Docker Compose or an external Nacos instance"
 
 call :log "[2/4] Start backend services in separate windows"
 for /f %%i in ('powershell -NoProfile -Command "$busy = Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction SilentlyContinue; if ($busy) { '1' } else { '0' }"') do set "GATEWAY_PORT_BUSY=%%i"
@@ -78,7 +72,7 @@ call :log "Waiting 8 seconds before starting frontend..."
 timeout /t 8 /nobreak >nul
 
 call :log "[3/4] Start frontend"
-start "JobPlus-Frontend" cmd /k "cd /d %FRONTEND_DIR% && set npm_config_cache=%FRONTEND_DIR%\.npm-cache && set npm_config_offline=false && call npm run dev 1>>""%LOG_DIR%\frontend-%TS%.log"" 2>&1"
+start "JobPlus-Frontend" cmd /k "cd /d %FRONTEND_DIR% && set npm_config_cache=%FRONTEND_DIR%\.npm-cache && set npm_config_offline=false && set VITE_PROXY_TARGET=http://localhost:!GATEWAY_PORT! && call npm run dev 1>>""%LOG_DIR%\frontend-%TS%.log"" 2>&1"
 
 call :log "[4/4] Startup command finished"
 call :log "Frontend:  http://localhost:5173"

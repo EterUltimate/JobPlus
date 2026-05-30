@@ -10,7 +10,6 @@
 - [Linux 支持](#-linux-支持)
 - [项目结构](#️-项目结构)
 - [开发指南](#️-开发指南)
-- [软件工程实验报告](#-软件工程实验报告)
 - [常见问题排查](#-常见问题排查)
 - [许可证](#许可证)
 
@@ -102,8 +101,6 @@ cd scripts && .\start-all.bat
 | `start-all.bat` | `start-all.sh` | 一键启动服务 |
 | `docker-deploy.bat` | `docker-deploy.sh` | Docker 部署脚本 |
 | `setup-docker-mirror.bat` | `setup-docker-mirror.sh` | Docker 镜像加速器配置 |
-| `scripts\init-database.ps1` | `scripts\init-database.sh` | 数据库初始化脚本 |
-| `scripts\start-nacos.bat` | `scripts\start-nacos.sh` | Nacos 启动脚本 |
 
 ### Linux 快速开始
 
@@ -135,7 +132,6 @@ cd scripts
 ```
 
 该脚本会：
-- 可选启动 Nacos 配置中心
 - 在独立终端窗口中启动 5 个微服务（网关、认证、用户、职位、简历）
 - 等待 8 秒后启动前端开发服务器
 - 显示所有服务的访问地址
@@ -242,7 +238,6 @@ ls -la logs/
 
 要修改脚本行为，请编辑对应的 `.sh` 文件。主要可配置项：
 
-- **Nacos 路径**：修改 `scripts/start-nacos.sh` 中的 `NACOS_HOME`
 - **服务端口**：修改各服务的 `application.yml`
 - **数据库连接**：修改 `.env` 文件或 `application.yml`
 
@@ -263,10 +258,7 @@ JobPlus/
 |   +-- start-all.*     # 服务启动脚本
 |   +-- docker-deploy.* # Docker 部署脚本
 |   +-- setup-docker-mirror.* # Docker 镜像加速器配置
-|   +-- init-database.* # 数据库初始化脚本
-|   +-- start-nacos.*   # Nacos 启动脚本
 |   +-- init-postgresql.sql # 数据库表结构
-+-- project-report/     # 软件工程实验报告
 +-- logs/               # 应用日志
 +-- docker-compose.yml  # Docker 编排配置
 +-- .env                # 环境变量配置
@@ -361,8 +353,8 @@ tail -f logs/start-all-*.log
 # 检查 PostgreSQL 状态
 pg_isready
 
-# 初始化数据库
-./scripts/init-database.sh
+# 初始化数据库（本机 PostgreSQL）
+psql -U postgres -f ./scripts/init-postgresql.sql
 ```
 
 #### Nacos 连接失败
@@ -372,107 +364,9 @@ pg_isready
 # 检查 Nacos 状态
 curl http://localhost:8848/nacos
 
-# 启动 Nacos
-./scripts/start-nacos.sh
 ```
 
 ---
-
-## 📊 软件工程实验报告
-
-`project-report/` 目录包含软件工程课程所需的 PlantUML 图表和报告模板。
-
-### 可用图表
-
-| 实验 | 文件 | 说明 |
-|-----|------|------|
-| **数据流图** | `实验一_数据流图.puml` | 上下文图 + 0 层分解 |
-| **用例图** | `实验二_用例图.puml` | 3 个参与者，28 个用例 |
-| **类图** | `实验三_类图.puml` | 核心领域模型 + 服务层 |
-| **序列图** | `实验四_序列图.puml` | 完整简历投递流程 |
-| **活动图** | `实验五_活动图.puml` | 带判断节点的业务流程 |
-| **状态图** | `实验六_状态图.puml` | 投递记录 6 状态转换 |
-
-### 渲染 PlantUML 图表
-
-#### 方法1：在线工具（✅ 推荐，无需安装）
-
-**PlantText** - https://www.planttext.com/
-
-1. 打开网站
-2. 复制 `.puml` 文件内容
-3. 粘贴到编辑器
-4. 点击 "Export" 下载图片
-5. **选择 SVG 格式**（矢量图，插入 Word 不会失真）
-
-#### 方法2：VS Code 插件（✅ 最方便）
-
-1. 安装插件：**PlantUML**（作者 jebbs）
-2. 打开 `.puml` 文件
-3. 按 `Alt + D` 预览
-4. 右键 → "Export Current Diagram"
-5. 选择 SVG 或 PNG 格式
-
-#### 方法3：命令行工具
-
-```bash
-# 安装 PlantUML（需要 Java）
-choco install plantuml    # Windows
-brew install plantuml     # macOS
-
-# 渲染所有文件为 SVG
-plantuml -tsvg *.puml
-```
-
-#### 方法4：IntelliJ IDEA / WebStorm
-
-1. 安装插件：**PlantUML Integration**
-2. 打开 `.puml` 文件
-3. 自动出现预览窗口
-4. 点击导出按钮
-
-### 完成实验报告步骤
-
-1. **渲染图表**：使用上述任意方法将所有 6 个 `.puml` 文件渲染为 **SVG 格式**
-
-2. **插入 Word 报告**：
-   - 打开 `软件工程基础实验报告.docx`
-   - 找到每个实验的占位符
-   - 删除占位文字
-   - Word 菜单：**插入 → 图片 → 此设备**
-   - 选择对应的 SVG 文件
-   - 调整图片大小（建议宽度：14-16 厘米）
-
-3. **填写个人信息**：
-   - 学号
-   - 姓名
-   - 班级
-   - 指导教师
-
-4. **完善实验内容**：
-   - 添加 **实验步骤**：详细描述你的操作过程
-   - 添加 **实验总结**：收获与遇到的问题
-
-5. **检查并提交**：
-   - 检查所有图表是否清晰可读
-   - 确认格式统一（字体、大小）
-   - 检查拼写和语法
-   - 保存最终版本
-   - 提交实验报告
-
-### 重要提示
-
-- **Word 插入请使用 SVG 格式**（矢量图，不会失真）
-- **PNG 需要高分辨率**（建议 300 DPI）
-- **保持宽高比**，不要拉伸
-- **中文字符显示正常**，所有图表均使用 UTF-8 编码测试
-- **定期保存 Word 文档**，避免数据丢失
-
-### 资源链接
-
-- **PlantUML 官网**：https://plantuml.com/zh/
-- **在线编辑器**：https://www.planttext.com/
-- **VS Code 插件**：PlantUML by jebbs
 
 ## 许可证
 

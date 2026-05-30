@@ -64,22 +64,7 @@ if [ "$HAS_NPM" -eq 0 ]; then
     exit 1
 fi
 
-log "[1/4] Optional: start Nacos"
-if [ -f "$ROOT/scripts/start-nacos.sh" ]; then
-    # 在新终端窗口中启动Nacos（需要xterm或gnome-terminal等）
-    if command -v xterm >/dev/null 2>&1; then
-        xterm -title "JobPlus-Nacos" -e "cd '$ROOT/scripts' && ./start-nacos.sh" &
-        log "Nacos window opened (xterm)"
-    elif command -v gnome-terminal >/dev/null 2>&1; then
-        gnome-terminal --title="JobPlus-Nacos" -- bash -c "cd '$ROOT/scripts' && ./start-nacos.sh; exec bash" &
-        log "Nacos window opened (gnome-terminal)"
-    else
-        log "No terminal emulator found, skipping Nacos auto-start"
-        log "Please manually run: cd scripts && ./start-nacos.sh"
-    fi
-else
-    log "Nacos start script not found, skipped"
-fi
+log "[1/4] Nacos auto-start removed; use Docker Compose or an external Nacos instance"
 
 log "[2/4] Start backend services in separate windows"
 

@@ -3,9 +3,11 @@ package com.jobplus.gateway.filter;
 import com.jobplus.common.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpMethod;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -31,10 +33,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
 
+    @Value("${jobplus.auth.redis-required:true}")
+    private boolean redisRequired;
+
     private static final String[] PUBLIC_EXACT_PATHS = {
             "/api/auth/login",
             "/api/auth/register",
-            "/api/jobs",
             "/actuator/health"
     };
 
@@ -44,7 +48,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         String path = req.getURI().getPath();
 
         // 放行公开路径
-        if (isPublic(path)) {
+        if (isPublic(path, req.getMethod())) {
             return chain.filter(exchange);
         }
 
@@ -59,9 +63,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         // 检查 Redis 中 Token 是否已登出
         Long userId = jwtUtil.getUserId(token);
-        String cached = redisTemplate.opsForValue()
-                .get(com.jobplus.common.constant.RedisKeys.token(userId));
-        if (cached == null) {
+        if (!isTokenActive(userId)) {
             return unauthorized(exchange, "Token 已失效，请重新登录");
         }
 
@@ -80,11 +82,19 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() { return -100; } // 最高优先级
 
-    private boolean isPublic(String path) {
+    private boolean isPublic(String path, HttpMethod method) {
         for (String p : PUBLIC_EXACT_PATHS) {
             if (path.equals(p)) {
                 return true;
             }
+        }
+
+        if (!HttpMethod.GET.equals(method)) {
+            return false;
+        }
+
+        if (path.equals("/api/jobs")) {
+            return true;
         }
 
         if (path.startsWith("/api/jobs/")) {
@@ -101,6 +111,21 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return auth.substring(7);
         }
         return null;
+    }
+
+    private boolean isTokenActive(Long userId) {
+        try {
+            String cached = redisTemplate.opsForValue()
+                    .get(com.jobplus.common.constant.RedisKeys.token(userId));
+            return cached != null || !redisRequired;
+        } catch (Exception ex) {
+            if (redisRequired) {
+                log.warn("Redis token validation failed for user {}: {}", userId, ex.getMessage());
+                return false;
+            }
+            log.debug("Redis unavailable, trusting valid JWT for user {}", userId);
+            return true;
+        }
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String msg) {

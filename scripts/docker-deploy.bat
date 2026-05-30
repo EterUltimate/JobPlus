@@ -38,7 +38,7 @@ if %errorlevel% neq 0 (
     set COMPOSE_CMD=docker-compose
 )
 
-echo [1/4] 检查环境配置...
+echo [1/3] 检查环境配置...
 REM 确保在项目根目录
 if not exist "%ROOT%\docker-compose.yml" (
     echo [错误] 未找到 docker-compose.yml，请确保在项目根目录运行此脚本
@@ -50,31 +50,23 @@ if not exist "%ROOT%\.env" (
     echo [提示] 未找到.env文件，从.env.example复制...
     copy .env.example .env >nul
     echo [提示] 请根据需要修改.env文件中的配置
-    pause
+    if not defined CI pause
 )
 
-echo [2/4] 构建Docker镜像...
-%COMPOSE_CMD% build --no-cache
+echo [2/3] 构建并启动服务...
+%COMPOSE_CMD% up -d --build
 if %errorlevel% neq 0 (
-    echo [错误] 镜像构建失败
+    echo [错误] 服务构建或启动失败
     pause
     exit /b 1
 )
 
-echo [3/4] 启动服务...
-%COMPOSE_CMD% up -d
-if %errorlevel% neq 0 (
-    echo [错误] 服务启动失败
-    pause
-    exit /b 1
-)
-
-echo [4/4] 等待服务就绪...
-timeout /t 30 /nobreak >nul
+echo [3/3] 当前服务状态...
+%COMPOSE_CMD% ps
 
 echo.
 echo ========================================
-echo    部署完成！
+echo    部署命令已完成！
 echo ========================================
 echo.
 echo 访问地址：
@@ -88,6 +80,7 @@ echo.
 echo 查看服务状态: %COMPOSE_CMD% ps
 echo 查看日志:     %COMPOSE_CMD% logs -f
 echo 停止服务:     %COMPOSE_CMD% down
+echo 提示: 健康检查会在后台继续运行，首次启动可能仍需等待镜像和服务初始化。
 echo.
 
-pause
+if not defined CI pause

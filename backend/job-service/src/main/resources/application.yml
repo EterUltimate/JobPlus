@@ -47,7 +47,14 @@ mybatis-plus:
     map-underscore-to-camel-case: true
   global-config:
     db-config:
-      id-type: auto
+      id-type: ${JOBPLUS_MYBATIS_ID_TYPE:auto}
+
+jobplus:
+  database:
+    fallback:
+      enabled: ${JOBPLUS_DB_FALLBACK_ENABLED:true}
+      sqlite-url: ${JOBPLUS_SQLITE_URL:jdbc:sqlite:../data/jobplus-fallback.sqlite}
+      probe-timeout-ms: ${JOBPLUS_DB_PROBE_TIMEOUT_MS:1500}
 
 management:
   endpoints:

@@ -6,6 +6,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,10 +26,14 @@ import java.util.List;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
+
+    @Value("${jobplus.auth.redis-required:true}")
+    private boolean redisRequired;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -37,10 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtUtil.validate(token)) {
             // 检查 Redis 中 Token 是否已失效（登出）
             Long userId = jwtUtil.getUserId(token);
-            String cached = redisTemplate.opsForValue()
-                    .get(com.jobplus.common.constant.RedisKeys.token(userId));
-
-            if (cached != null) {
+            if (isTokenActive(userId)) {
                 String role = jwtUtil.getRole(token);
                 var auth = new UsernamePasswordAuthenticationToken(
                         userId, null,
@@ -53,6 +56,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTokenActive(Long userId) {
+        try {
+            String cached = redisTemplate.opsForValue()
+                    .get(com.jobplus.common.constant.RedisKeys.token(userId));
+            return cached != null || !redisRequired;
+        } catch (Exception ex) {
+            if (redisRequired) {
+                log.warn("Redis token validation failed for user {}: {}", userId, ex.getMessage());
+                return false;
+            }
+            log.debug("Redis unavailable, trusting valid JWT for user {}", userId);
+            return true;
+        }
     }
 
     private String extractToken(HttpServletRequest request) {

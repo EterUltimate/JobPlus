@@ -98,14 +98,19 @@ public class JobService {
         if (job == null) throw new BizException("职位不存在");
         // 浏览计数（Redis 批量写回 MySQL）
         String viewsKey = RedisKeys.jobViewCount(jobId);
-        Long views = redisTemplate.opsForValue().increment(viewsKey);
-        if (views != null && views == 1) {
-            redisTemplate.expire(viewsKey, 1, TimeUnit.HOURS);
-            // 异步更新（实际生产可用 XXL-Job 定时同步）
+        try {
+            Long views = redisTemplate.opsForValue().increment(viewsKey);
+            if (views != null && views == 1) {
+                redisTemplate.expire(viewsKey, 1, TimeUnit.HOURS);
+                // 异步更新（实际生产可用 XXL-Job 定时同步）
+                job.setViewCount((job.getViewCount() == null ? 0 : job.getViewCount()) + 1);
+            } else if (views != null) {
+                redisTemplate.opsForValue().increment(viewsKey);
+                job.setViewCount((job.getViewCount() == null ? 0 : job.getViewCount()) + views.intValue());
+            }
+        } catch (Exception ex) {
+            log.warn("Redis view counter skipped for job {}: {}", jobId, ex.getMessage());
             job.setViewCount((job.getViewCount() == null ? 0 : job.getViewCount()) + 1);
-        } else if (views != null) {
-            redisTemplate.opsForValue().increment(viewsKey);
-            job.setViewCount((job.getViewCount() == null ? 0 : job.getViewCount()) + views.intValue());
         }
         return job;
     }

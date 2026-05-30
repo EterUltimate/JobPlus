@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 // 路由懒加载
@@ -12,7 +12,7 @@ const ResumeView = () => import('@/views/ResumeView.vue')
 const HrDashboardView = () => import('@/views/HrDashboardView.vue')
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes: [
     { path: '/', redirect: '/home' },
     { path: '/login', component: LoginView, meta: { guest: true } },

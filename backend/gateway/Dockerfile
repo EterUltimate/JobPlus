@@ -11,12 +11,15 @@ COPY job-service/pom.xml job-service/
 COPY resume-service/pom.xml resume-service/
 COPY gateway/pom.xml gateway/
 
+# 先下载依赖，源码变化时可复用这一层缓存
+RUN mvn -B -ntp -pl gateway -am dependency:go-offline
+
 # 复制源代码
 COPY common/src common/src
 COPY gateway/src gateway/src
 
 # 构建应用
-RUN mvn clean package -pl gateway -am -DskipTests
+RUN mvn -B -ntp package -pl gateway -am -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 

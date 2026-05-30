@@ -32,6 +32,7 @@ desktop.ini
 
 # Database
 *.db
+*.sqlite
 *.h2.db
 
 # Temporary files
@@ -45,6 +46,10 @@ desktop.ini
 frontend/node_modules/
 frontend/.npm
 frontend/.yarn
+frontend/backend-services/
+frontend/java-runtime/
+frontend/release/
+frontend/release-assets/
 
 # Maven
 backend/.mvn/
@@ -62,6 +67,3 @@ jspm_packages/
 # npm cache
 frontend/.npm-cache/
 backend/package-lock.json
-
-# Project reports and documentation (keep only README.md)
-project-report/

@@ -32,7 +32,7 @@ else
     exit 1
 fi
 
-echo "[1/4] 检查环境配置..."
+echo "[1/3] 检查环境配置..."
 
 # 确保在项目根目录
 if [ ! -f "docker-compose.yml" ]; then
@@ -44,29 +44,23 @@ if [ ! -f ".env" ]; then
     echo "[提示] 未找到.env文件，从.env.example复制..."
     cp .env.example .env
     echo "[提示] 请根据需要修改.env文件中的配置"
-    read -p "按回车继续..." 
+    if [ -z "${CI:-}" ]; then
+        read -p "按回车继续..."
+    fi
 fi
 
-echo "[2/4] 构建Docker镜像..."
-$COMPOSE_CMD build --no-cache
-if [ $? -ne 0 ]; then
-    echo "[错误] 镜像构建失败"
+echo "[2/3] 构建并启动服务..."
+if ! $COMPOSE_CMD up -d --build; then
+    echo "[错误] 服务构建或启动失败"
     exit 1
 fi
 
-echo "[3/4] 启动服务..."
-$COMPOSE_CMD up -d
-if [ $? -ne 0 ]; then
-    echo "[错误] 服务启动失败"
-    exit 1
-fi
-
-echo "[4/4] 等待服务就绪..."
-sleep 30
+echo "[3/3] 当前服务状态..."
+$COMPOSE_CMD ps
 
 echo ""
 echo "========================================"
-echo "   部署完成！"
+echo "   部署命令已完成！"
 echo "========================================"
 echo ""
 echo "访问地址："
@@ -80,4 +74,5 @@ echo ""
 echo "查看服务状态: $COMPOSE_CMD ps"
 echo "查看日志:     $COMPOSE_CMD logs -f"
 echo "停止服务:     $COMPOSE_CMD down"
+echo "提示: 健康检查会在后台继续运行，首次启动可能仍需等待镜像和服务初始化。"
 echo ""
